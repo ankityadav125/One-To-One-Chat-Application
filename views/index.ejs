@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link href='https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css' rel='stylesheet' />
+  <link rel="stylesheet" href="/stylesheets/style.css">
+</head>
+
+<body>
+  <main>
+
+    <div class="left">
+      <div class="top">
+        <div class="user">
+          <img src="<%= user.profileImage %>" alt="">
+          <h1><%= user.username %></h1>
+        </div>
+      </div>
+
+      <div class="bottom">
+        <div class="users">
+
+        </div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="topUser">
+        <div class="user">
+          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzB8fG1vZGVsc3xlbnwwfHwwfHx8MA%3D%3D" alt="">
+          <div class="text">
+            <h1>Username</h1>
+            <small>Active now</small>
+          </div>
+        </div>
+      </div>
+      <div class="conversation">
+        <div class="messages">
+
+        </div>
+
+        <div class="inputs">
+          <input type="text" placeholder="Write your message">
+          <button><i class="ri-send-plane-line"></i></button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.7.2/axios.min.js" integrity="sha512-JSCFHhKDilTRRXe9ak/FJ28dcpOJxzQaCd3Xg8MyF6XFjODhy/YMCM8HW0TFDckNHWUewW+kfvhin43hKtJxAw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    var socket = io();
+    var user = "<%= user.username %>"
+    let receiver = null
+    let receiverImage = null
+
+    socket.emit('join', user)
+
+    axios.get('/getOnlineUser').then(response => {
+      response.data.onlineUsers.forEach(onlineUser => {
+        appendNewChat(onlineUser.profileImage, onlineUser.username)
+      });
+    })
+
+
+    function appendNewChat(userImage, userName) {
+      const userTemplate = `
+       <div onClick="openChat('${userImage}','${userName}')" class="user">
+            <img src="${userImage}" alt="">
+            <h1>${userName}</h1>
+          </div>`
+
+      document.querySelector('.left .users').innerHTML += userTemplate
+    }
+
+
+    function appendIncomingMessage(userImage, message) {
+      const messageTemplate = `
+      <div class="message">
+            <img src="${userImage}" alt="">
+            <p>${message}</p>
+          </div>
+      `
+      document.querySelector('.messages').innerHTML += messageTemplate
+    }
+
+
+    function appendOutgoingMessage(message) {
+      const messageTemplate = `
+      <div class="message">
+            <p>${message}</p>
+          </div>
+      `
+      document.querySelector('.messages').innerHTML += messageTemplate
+      document.querySelector('.inputs input').value = ""
+    }
+
+    document.querySelector('.inputs button').addEventListener('click', () => {
+
+      const message = document.querySelector('.inputs input').value
+
+      appendOutgoingMessage(message)
+
+      socket.emit("sony", {
+        sender: user,
+        receiver: receiver,
+        text: message
+      })
+
+    })
+
+    socket.on('max', messagePacket => {
+      console.log(messagePacket)
+      if (messagePacket.sender.username == receiver)
+        appendIncomingMessage(messagePacket.sender.profileImage, messagePacket.text)
+    })
+
+
+
+    function openChat(userImage, userName) {
+
+      receiver = userName
+      receiverImage = userImage
+
+      document.querySelector('.right').style.display = 'flex'
+
+      document.querySelector('.topUser .user img').src = userImage
+      document.querySelector('.topUser .user .text').textContent = userName
+
+      axios.get(`/getMessage?receiver=${receiver}`).then(response => {
+
+        response.data.messages.forEach(message => {
+
+          if (message.sender == user) {
+            appendOutgoingMessage(message.text)
+          } else {
+            appendIncomingMessage(receiverImage, message.text)
+          }
+
+        })
+
+      })
+
+    }
+  </script>
+</body>
+
+</html>
